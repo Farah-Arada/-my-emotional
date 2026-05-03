@@ -3,107 +3,87 @@ import { Smile, Home, Volume2, AlertCircle, Hand, Heart, Palette, Trash2, Rotate
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ─────────────────────────────────────────────────
-// 🔊 ملفات MP3 الثابتة
+// 🔊 النصوص التي سينطقها التطبيق (بديل لملفات MP3)
 // ─────────────────────────────────────────────────
-const STATIC_AUDIO = {
-  welcome_boy: '/sounds/welcome_boy.mp3',
-  welcome_girl: '/sounds/welcome_girl.mp3',
-  question_feelings_boy: '/sounds/question_feelings_boy.mp3',
-  question_feelings_girl: '/sounds/question_feelings_girl.mp3',
-  question_needs_boy: '/sounds/question_needs_boy.mp3',
-  question_needs_girl: '/sounds/question_needs_girl.mp3',
-  question_draw_boy: '/sounds/question_draw_boy.mp3',
-  question_draw_girl: '/sounds/question_draw_girl.mp3',
+const STATIC_AUDIO_TEXT = {
+  welcome_boy: 'أَهْلَاً بِكَ يَا بَطَل! هَيَّا بِنَا نَلْعَب.',
+  welcome_girl: 'أَهْلَاً بِكِ يَا أَمِيرَة! هَيَّا بِنَا نَلْعَب.',
+  question_feelings_boy: 'كَيْفَ تَشْعُرُ الْيَوْمَ؟',
+  question_feelings_girl: 'كَيْفَ حَالُكِ الْيَوْمَ؟',
+  question_needs_boy: 'أَخْبِرْنِي، مَاذَا تُرِيدُ؟',
+  question_needs_girl: 'أَخْبِرِينِي، مَاذَا تُرِيدِينَ؟',
+  question_draw_boy: 'هَلْ تَسْتَطِيعُ أَنْ تَرْسُمَ لِي بِمَاذَا تَشْعُرُ؟',
+  question_draw_girl: 'هَلْ تَسْتَطِيعِينَ أَنْ تَرْسُمِي لِي بِمَاذَا تَشْعُرِينَ؟',
 };
 
 // ─────────────────────────────────────────────────
 // 🎭 قائمة المشاعر
 // ─────────────────────────────────────────────────
 const feelings = [
-  { id: 'happy', label: { boy: 'أَنَا سَعِيد', girl: 'أَنَا سَعِيدَة' }, audioSrc: { boy: '/sounds/happy_boy.mp3', girl: '/sounds/happy_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Grinning%20Face%20with%20Big%20Eyes.png', color: 'bg-yellow-300' },
-  { id: 'sad', label: { boy: 'أَنَا حَزِين', girl: 'أَنَا حَزِينَة' }, audioSrc: { boy: '/sounds/sad_boy.mp3', girl: '/sounds/sad_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Crying%20Face.png', color: 'bg-blue-300' },
-  { id: 'angry', label: { boy: 'أَنَا غَاضِب', girl: 'أَنَا غَاضِبَة' }, audioSrc: { boy: '/sounds/angry_boy.mp3', girl: '/sounds/angry_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Face%20with%20Steam%20From%20Nose.png', color: 'bg-red-400' },
-  { id: 'scared', label: { boy: 'أَنَا خَائِف', girl: 'أَنَا خَائِفَة' }, audioSrc: { boy: '/sounds/scared_boy.mp3', girl: '/sounds/scared_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Fearful%20Face.png', color: 'bg-purple-300' },
-  { id: 'hungry', label: { boy: 'أَنَا جَائِع', girl: 'أَنَا جَائِعَة' }, audioSrc: { boy: '/sounds/hungry_boy.mp3', girl: '/sounds/hungry_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Face%20Savoring%20Food.png', color: 'bg-orange-300' },
-  { id: 'tired', label: { boy: 'أَنَا مُتْعَب', girl: 'أَنَا مُتْعَبَة' }, audioSrc: { boy: '/sounds/tired_boy.mp3', girl: '/sounds/tired_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Yawning%20Face.png', color: 'bg-indigo-300' },
-  { id: 'sick', label: { boy: 'أَنَا مَرِيض', girl: 'أَنَا مَرِيضَة' }, audioSrc: { boy: '/sounds/sick_boy.mp3', girl: '/sounds/sick_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Emojis/master/Emojis/Smilies/Face%20with%20Thermometer.png', color: 'bg-green-300' },
-  { id: 'excited', label: { boy: 'أَنَا مُتَحَمِّس', girl: 'أَنَا مُتَحَمِّسَة' }, audioSrc: { boy: '/sounds/excited_boy.mp3', girl: '/sounds/excited_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Star-Struck.png', color: 'bg-pink-300' },
+  { id: 'happy', label: { boy: 'أَنَا سَعِيد', girl: 'أَنَا سَعِيدَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Grinning%20Face%20with%20Big%20Eyes.png', color: 'bg-yellow-300' },
+  { id: 'sad', label: { boy: 'أَنَا حَزِين', girl: 'أَنَا حَزِينَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Crying%20Face.png', color: 'bg-blue-300' },
+  { id: 'angry', label: { boy: 'أَنَا غَاضِب', girl: 'أَنَا غَاضِبَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Face%20with%20Steam%20From%20Nose.png', color: 'bg-red-400' },
+  { id: 'scared', label: { boy: 'أَنَا خَائِف', girl: 'أَنَا خَائِفَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Fearful%20Face.png', color: 'bg-purple-300' },
+  { id: 'hungry', label: { boy: 'أَنَا جَائِع', girl: 'أَنَا جَائِعَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Face%20Savoring%20Food.png', color: 'bg-orange-300' },
+  { id: 'tired', label: { boy: 'أَنَا مُتْعَب', girl: 'أَنَا مُتْعَبَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Yawning%20Face.png', color: 'bg-indigo-300' },
+  { id: 'sick', label: { boy: 'أَنَا مَرِيض', girl: 'أَنَا مَرِيضَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Face%20with%20Thermometer.png', color: 'bg-green-300' },
+  { id: 'excited', label: { boy: 'أَنَا مُتَحَمِّس', girl: 'أَنَا مُتَحَمِّسَة' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Star-Struck.png', color: 'bg-pink-300' },
 ];
 
 // ─────────────────────────────────────────────────
 // 🎯 قائمة الاحتياجات
 // ─────────────────────────────────────────────────
 const needs = [
-  { id: 'play', label: { boy: 'أُرِيدُ أَنْ أَلْعَب', girl: 'أُرِيدُ أَنْ أَلْعَب' }, audioSrc: { boy: '/sounds/play_boy.mp3', girl: '/sounds/play_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/Video%20Game.png', color: 'bg-emerald-300' },
-  { id: 'mom', label: { boy: 'أُرِيدُ أُمِّي', girl: 'أُرِيدُ أُمِّي' }, audioSrc: { boy: '/sounds/mom_boy.mp3', girl: '/sounds/mom_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Woman.png', color: 'bg-rose-300' },
-  { id: 'sleep', label: { boy: 'أُرِيدُ أَنْ أَنَام', girl: 'أُرِيدُ أَنْ أَنَام' }, audioSrc: { boy: '/sounds/sleep_boy.mp3', girl: '/sounds/sleep_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Sleeping%20Face.png', color: 'bg-indigo-300' },
-  { id: 'bathroom', label: { boy: 'أُرِيدُ الْحَمَّام', girl: 'أُرِيدُ الْحَمَّام' }, audioSrc: { boy: '/sounds/bathroom_boy.mp3', girl: '/sounds/bathroom_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Toilet.png', color: 'bg-cyan-300' },
-  { id: 'talk', label: { boy: 'أُرِيدُ أَنْ أَتَكَلَّم', girl: 'أُرِيدُ أَنْ أَتَكَلَّم' }, audioSrc: { boy: '/sounds/talk_boy.mp3', girl: '/sounds/talk_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Speaking%20Head.png', color: 'bg-amber-300' },
-  { id: 'no_talk', label: { boy: 'لَا أُرِيدُ الْكَلَامَ الْآن', girl: 'لَا أُرِيدُ الْكَلَامَ الْآن' }, audioSrc: { boy: '/sounds/notalk_boy.mp3', girl: '/sounds/notalk_girl.mp3' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Zipper-Mouth%20Face.png', color: 'bg-slate-300' },
+  { id: 'play', label: { boy: 'أُرِيدُ أَنْ أَلْعَب', girl: 'أُرِيدُ أَنْ أَلْعَب' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/Video%20Game.png', color: 'bg-emerald-300' },
+  { id: 'mom', label: { boy: 'أُرِيدُ أُمِّي', girl: 'أُرِيدُ أُمِّي' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Woman.png', color: 'bg-rose-300' },
+  { id: 'sleep', label: { boy: 'أُرِيدُ أَنْ أَنَام', girl: 'أُرِيدُ أَنْ أَنَام' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Sleeping%20Face.png', color: 'bg-indigo-300' },
+  { id: 'bathroom', label: { boy: 'أُرِيدُ الْحَمَّام', girl: 'أُرِيدُ الْحَمَّام' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Toilet.png', color: 'bg-cyan-300' },
+  { id: 'talk', label: { boy: 'أُرِيدُ أَنْ أَتَكَلَّم', girl: 'أُرِيدُ أَنْ أَتَكَلَّم' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Speaking%20Head.png', color: 'bg-amber-300' },
+  { id: 'no_talk', label: { boy: 'لَا أُرِيدُ الْكَلَامَ الْآن', girl: 'لَا أُرِيدُ الْكَلَامَ الْآن' }, image: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Zipper-Mouth%20Face.png', color: 'bg-slate-300' },
 ];
 
 // ─────────────────────────────────────────────────
-// 🎵 مدير الصوت المُحسّن (Preload)
+// 🎵 مدير الصوت - تم تحويله ليستخدم تحويل النص إلى كلام المتوفر في المتصفح
 // ─────────────────────────────────────────────────
 const useAudioManager = () => {
-  const audioCache = useRef(new Map());
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const getAudio = useCallback((src) => {
-    if (!src) return null;
-    if (audioCache.current.has(src)) {
-      return audioCache.current.get(src);
-    }
-    
-    const audio = new Audio(src);
-    audio.preload = 'auto';
-    audioCache.current.set(src, audio);
-    return audio;
-  }, []);
-
-  const playAudio = useCallback((src) => {
+  const playAudio = useCallback((text) => {
     return new Promise((resolve) => {
-      const audio = getAudio(src);
-      if (!audio) {
+      if (!text) {
         resolve();
         return;
       }
 
-      // إعادة تعيين الوقت عشان نقدر نعيد التشغيل
-      audio.currentTime = 0;
-      
-      const handleEnd = () => {
+      // إيقاف أي صوت سابق
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ar-SA'; // نطق باللغة العربية
+      utterance.rate = 0.9; // تبطيء الصوت قليلاً ليناسب الأطفال
+      utterance.pitch = 1.2; // جعل الصوت أرفع قليلاً
+
+      utterance.onend = () => {
         setIsSpeaking(false);
-        audio.removeEventListener('ended', handleEnd);
-        audio.removeEventListener('error', handleError);
         resolve();
       };
 
-      const handleError = () => {
-        console.warn("Audio error:", src);
+      utterance.onerror = () => {
         setIsSpeaking(false);
-        audio.removeEventListener('ended', handleEnd);
-        audio.removeEventListener('error', handleError);
         resolve();
       };
-
-      audio.addEventListener('ended', handleEnd);
-      audio.addEventListener('error', handleError);
 
       setIsSpeaking(true);
-      audio.play().catch((e) => {
-        console.warn("Playback blocked:", e);
-        setIsSpeaking(false);
-        resolve();
-      });
+      window.speechSynthesis.speak(utterance);
     });
-  }, [getAudio]);
+  }, []);
 
   const stopAll = useCallback(() => {
-    audioCache.current.forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     setIsSpeaking(false);
   }, []);
 
@@ -120,7 +100,7 @@ export default function App() {
   const isDrawing = useRef(false);
   const [strokeColor, setStrokeColor] = useState('#8b5cf6');
 
-  const { playAudio, isSpeaking, setIsSpeaking, stopAll } = useAudioManager();
+  const { playAudio, isSpeaking, stopAll } = useAudioManager();
 
   const showError = useCallback((msg) => {
     setErrorMessage(msg);
@@ -128,7 +108,7 @@ export default function App() {
   }, []);
 
   // ─────────────────────────────────────────────────
-  // 🚀 معالجة البداية
+  // 🚀 معالجة البداية (تم تعديل التوقيتات هنا)
   // ─────────────────────────────────────────────────
   const handleStart = useCallback(async (e) => {
     e.preventDefault();
@@ -137,8 +117,14 @@ export default function App() {
     setStep('welcome');
     setCurrentMode('feelings');
     
-    const welcomePath = childGender === 'boy' ? STATIC_AUDIO.welcome_boy : STATIC_AUDIO.welcome_girl;
-    await playAudio(welcomePath);
+    // 1. انتظار ثانية حتى يكتمل ظهور شاشة الترحيب قبل التحدث
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const welcomeText = childGender === 'boy' ? STATIC_AUDIO_TEXT.welcome_boy : STATIC_AUDIO_TEXT.welcome_girl;
+    await playAudio(welcomeText);
+    
+    // 2. انتظار ثانية ونصف بعد انتهاء الصوت ليتأمل الطفل الشاشة قبل اختفائها
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     setStep('app');
   }, [childGender, playAudio]);
@@ -149,42 +135,35 @@ export default function App() {
   const playQuestion = useCallback(() => {
     if (!childGender) return;
     
-    let questionPath = '';
+    let questionText = '';
     if (currentMode === 'feelings') {
-      questionPath = childGender === 'boy' ? STATIC_AUDIO.question_feelings_boy : STATIC_AUDIO.question_feelings_girl;
+      questionText = childGender === 'boy' ? STATIC_AUDIO_TEXT.question_feelings_boy : STATIC_AUDIO_TEXT.question_feelings_girl;
     } else if (currentMode === 'needs') {
-      questionPath = childGender === 'boy' ? STATIC_AUDIO.question_needs_boy : STATIC_AUDIO.question_needs_girl;
+      questionText = childGender === 'boy' ? STATIC_AUDIO_TEXT.question_needs_boy : STATIC_AUDIO_TEXT.question_needs_girl;
     } else if (currentMode === 'draw') {
-      questionPath = childGender === 'boy' ? STATIC_AUDIO.question_draw_boy : STATIC_AUDIO.question_draw_girl;
+      questionText = childGender === 'boy' ? STATIC_AUDIO_TEXT.question_draw_boy : STATIC_AUDIO_TEXT.question_draw_girl;
     }
     
-    playAudio(questionPath);
+    playAudio(questionText);
   }, [currentMode, childGender, playAudio]);
 
-  // دالة لجلب نص السؤال الحالي بناءً على القسم والجنس
   const getQuestionText = useCallback(() => {
     if (currentMode === 'feelings') {
-      return childGender === 'boy' 
-        ? `كَيْفَ تَشْعُرُ الْيَوْمَ؟` 
-        : `كَيْفَ حَالُكِ الْيَوْمَ؟`;
+      return childGender === 'boy' ? `كَيْفَ تَشْعُرُ الْيَوْمَ؟` : `كَيْفَ حَالُكِ الْيَوْمَ؟`;
     } else if (currentMode === 'needs') {
-      return childGender === 'boy' 
-        ? `أَخْبِرْنِي مَاذَا تُرِيدُ؟` 
-        : `أَخْبِرِينِي مَاذَا تُرِيدِينَ؟`;
+      return childGender === 'boy' ? `أَخْبِرْنِي مَاذَا تُرِيدُ؟` : `أَخْبِرِينِي مَاذَا تُرِيدِينَ؟`;
     } else if (currentMode === 'draw') {
-      return childGender === 'boy' 
-        ? `هَلْ تَسْتَطِيعُ أَنْ تَرْسُمَ لِي بِمَاذَا تَشْعُرُ؟` 
-        : `هَلْ تَسْتَطِيعِينَ أَنْ تَرْسُمِي لِي بِمَاذَا تَشْعُرِينَ؟`;
+      return childGender === 'boy' ? `هَلْ تَسْتَطِيعُ أَنْ تَرْسُمَ لِي بِمَاذَا تَشْعُرُ؟` : `هَلْ تَسْتَطِيعِينَ أَنْ تَرْسُمِي لِي بِمَاذَا تَشْعُرِينَ؟`;
     }
     return '';
   }, [currentMode, childGender]);
 
   useEffect(() => {
     if (step === 'app' && childGender) {
+      // 3. زيادة وقت الانتظار إلى ثانية ونصف قبل نطق السؤال عند دخول الشاشة الرئيسية
       const timer = setTimeout(() => {
         playQuestion();
-      }, 600);
-      
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [step, currentMode, childGender, playQuestion]);
@@ -250,15 +229,13 @@ export default function App() {
   }, [currentMode]);
 
   useEffect(() => {
-    return () => {
-      stopAll();
-    };
+    return () => stopAll();
   }, [stopAll]);
 
   const currentList = currentMode === 'feelings' ? feelings : needs;
 
   return (
-    <div className="min-h-screen relative text-right overflow-x-hidden select-none" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+    <div className="min-h-screen relative text-right overflow-x-hidden select-none bg-slate-50" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');`}</style>
       
       <AnimatePresence mode="wait">
@@ -285,7 +262,6 @@ export default function App() {
             transition={{ duration: 0.5 }}
             className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-cyan-300 via-purple-300 to-pink-300 relative overflow-hidden"
           >
-            {/* دوائر متحركة خلفية */}
             <div className="absolute top-10 left-10 w-32 h-32 bg-white/40 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-10 right-20 w-40 h-40 bg-white/40 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute top-1/2 right-10 w-24 h-24 bg-yellow-300/40 rounded-full blur-xl animate-pulse"></div>
@@ -362,73 +338,33 @@ export default function App() {
             transition={{ duration: 0.6, type: "spring" }}
             className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-300 via-pink-400 to-purple-400 text-center relative overflow-hidden"
           >
-            {/* خلفية حيوية */}
             <div className="absolute inset-0">
-              <motion.div 
-                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-                transition={{ repeat: Infinity, duration: 3 }}
-                className="absolute top-10 left-10 w-40 h-40 bg-white/30 rounded-full blur-3xl"
-              />
-              <motion.div 
-                animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }}
-                transition={{ repeat: Infinity, duration: 4, delay: 1 }}
-                className="absolute bottom-10 right-10 w-56 h-56 bg-white/30 rounded-full blur-3xl"
-              />
-              <motion.div 
-                animate={{ y: [0, -20, 0] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="absolute top-1/3 left-1/4 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl"
-              />
-              <motion.div 
-                animate={{ y: [0, 15, 0] }}
-                transition={{ repeat: Infinity, duration: 2.5, delay: 0.5 }}
-                className="absolute bottom-1/4 right-1/3 w-24 h-24 bg-pink-200/40 rounded-full blur-2xl"
-              />
+              <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }} transition={{ repeat: Infinity, duration: 3 }} className="absolute top-10 left-10 w-40 h-40 bg-white/30 rounded-full blur-3xl" />
+              <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }} transition={{ repeat: Infinity, duration: 4, delay: 1 }} className="absolute bottom-10 right-10 w-56 h-56 bg-white/30 rounded-full blur-3xl" />
+              <motion.div animate={{ y: [0, -20, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute top-1/3 left-1/4 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl" />
+              <motion.div animate={{ y: [0, 15, 0] }} transition={{ repeat: Infinity, duration: 2.5, delay: 0.5 }} className="absolute bottom-1/4 right-1/3 w-24 h-24 bg-pink-200/40 rounded-full blur-2xl" />
             </div>
             
             <div className="relative z-10 flex flex-col items-center">
-              <motion.div 
-                animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="text-8xl md:text-9xl mb-6 drop-shadow-2xl"
-              >
+              <motion.div animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-8xl md:text-9xl mb-6 drop-shadow-2xl">
                 🎉
               </motion.div>
               
-              <motion.h1 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="text-4xl md:text-6xl font-black text-white drop-shadow-lg mb-4"
-              >
+              <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="text-4xl md:text-6xl font-black text-white drop-shadow-lg mb-4">
                 أهلاً بك
               </motion.h1>
-              <motion.h2 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-5xl md:text-7xl font-black text-yellow-200 drop-shadow-xl"
-              >
+              <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="text-5xl md:text-7xl font-black text-yellow-200 drop-shadow-xl">
                 {childGender === 'boy' ? 'يا بطل!' : 'يا أميرة!'} 👋
               </motion.h2>
               
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="mt-10 flex gap-4"
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="mt-10 flex gap-4">
                 <motion.span animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="text-4xl">✨</motion.span>
                 <motion.span animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="text-4xl">🌟</motion.span>
                 <motion.span animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="text-4xl">✨</motion.span>
               </motion.div>
               
               {isSpeaking && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 flex justify-center gap-3"
-                >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 flex justify-center gap-3">
                   <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.5 }} className="w-4 h-4 bg-white rounded-full" />
                   <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.5, delay: 0.2 }} className="w-4 h-4 bg-white rounded-full" />
                   <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 0.5, delay: 0.4 }} className="w-4 h-4 bg-white rounded-full" />
@@ -586,7 +522,7 @@ export default function App() {
                         exit={{ opacity: 0, scale: 0.8 }}
                         whileHover={{ scale: 1.05, y: -5 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => playAudio(item.audioSrc[childGender])} 
+                        onClick={() => playAudio(item.label[childGender])} 
                         disabled={isSpeaking}
                         className={`${item.color} relative group flex flex-col items-center justify-center p-6 md:p-8 rounded-[3.5rem] border-4 border-white transition-all duration-300 shadow-lg disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed`}
                       >
