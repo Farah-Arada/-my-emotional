@@ -1,9 +1,53 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Smile, Home, Volume2, AlertCircle } from 'lucide-react';
+import { Smile, Home, Volume2, AlertCircle, Loader2 } from 'lucide-react';
+
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+// ─────────────────────────────────────────────────
+// 🔧 دوال تحويل الصوت (للـ API)
+// ─────────────────────────────────────────────────
+const base64ToArrayBuffer = (base64) => {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
+const pcmToWav = (pcmData, sampleRate) => {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmData.byteLength;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const writeString = (view, offset, string) => {
+    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+  };
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+  new Uint8Array(buffer, 44).set(new Uint8Array(pcmData));
+  return new Blob([buffer], { type: 'audio/wav' });
+};
 
 // ─────────────────────────────────────────────────
 // 🎭 قائمة المشاعر (مع مسارات ملفات MP3)
 // ─────────────────────────────────────────────────
+// 📁 ضعي ملفات الصوت في مجلد public/sounds/
 const feelings = [
   { 
     id: 'happy', 
@@ -68,9 +112,11 @@ export default function App() {
   const [childName, setChildName] = useState('');
   const [childGender, setChildGender] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const audioRef = useRef(null);
+  const audioCache = useRef({});
 
   const showError = useCallback((msg) => {
     setErrorMessage(msg);
@@ -78,33 +124,9 @@ export default function App() {
   }, []);
 
   // ─────────────────────────────────────────────────
-  // 🔓 تفعيل الصوت (مطلوب للموبايل)
+  // 🎙️ TTS الاحتياطي (إذا فشل API)
   // ─────────────────────────────────────────────────
-  const unlockAudio = useCallback(async () => {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
-        if (ctx.state === 'suspended') {
-          await ctx.resume();
-        }
-      }
-      
-      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
-      silentAudio.volume = 0.01;
-      await silentAudio.play();
-      
-      return true;
-    } catch (e) {
-      console.warn("Audio unlock failed:", e);
-      return false;
-    }
-  }, []);
-
-  // ─────────────────────────────────────────────────
-  // 🎙️ TTS للترحيب والسؤال (صوت بالغ)
-  // ─────────────────────────────────────────────────
-  const speakAdult = useCallback((text, gender) => {
+  const speakFallback = useCallback((text, gender) => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return; }
       
@@ -129,6 +151,105 @@ export default function App() {
   }, []);
 
   // ─────────────────────────────────────────────────
+  // 🎙️ الصوت الديناميكي (API) - للترحيب والسؤال فقط
+  // ─────────────────────────────────────────────────
+  const playDynamicAudio = useCallback(async (text, gender) => {
+    const cacheKey = text + "_" + gender;
+    setIsLoading(true);
+
+    // تشغيل من الذاكرة المؤقتة
+    if (audioCache.current[cacheKey]) {
+      try {
+        if (!audioRef.current) audioRef.current = new Audio();
+        audioRef.current.pause();
+        audioRef.current.src = audioCache.current[cacheKey];
+        
+        await new Promise((resolve) => {
+          audioRef.current.onplay = () => { setIsSpeaking(true); setIsLoading(false); };
+          audioRef.current.onended = () => { setIsSpeaking(false); resolve(); };
+          audioRef.current.onerror = () => { setIsSpeaking(false); resolve(); };
+          audioRef.current.play().catch(() => { setIsSpeaking(false); resolve(); });
+        });
+        return;
+      } catch (e) {
+        console.warn("Cache play failed", e);
+      }
+    }
+
+    try {
+      const prompt = "Speak naturally in Arabic with a warm, friendly adult voice.";
+      let response = null;
+      let lastError = null;
+      
+      // محاولات مع تأخير تصاعدي
+      for (let i = 0; i < 3; i++) {
+        try {
+          response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: `${prompt} Say: "${text}"` }] }],
+                generationConfig: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: {
+                        voiceName: gender === 'girl' ? 'Kore' : 'Puck'
+                      }
+                    }
+                  }
+                }
+              })
+            }
+          );
+          
+          if (response.status === 429) {
+            const delay = Math.pow(2, i) * 1000;
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          break;
+          
+        } catch (err) {
+          lastError = err;
+          if (i === 2) throw lastError;
+        }
+      }
+
+      const data = await response.json();
+      const base64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || "";
+      const rate = parseInt(mimeType.match(/rate=(\d+)/)?.[1] || "24000");
+
+      if (base64) {
+        const url = URL.createObjectURL(pcmToWav(base64ToArrayBuffer(base64), rate));
+        audioCache.current[cacheKey] = url;
+        
+        if (!audioRef.current) audioRef.current = new Audio();
+        audioRef.current.pause();
+        audioRef.current.src = url;
+        
+        await new Promise((resolve) => {
+          audioRef.current.onplay = () => { setIsSpeaking(true); setIsLoading(false); };
+          audioRef.current.onended = () => { setIsSpeaking(false); resolve(); };
+          audioRef.current.onerror = () => { setIsSpeaking(false); resolve(); };
+          audioRef.current.play().catch(() => { setIsSpeaking(false); resolve(); });
+        });
+      } else {
+        throw new Error("No audio data received");
+      }
+    } catch (e) {
+      console.warn("API failed, falling back to native TTS", e);
+      setIsLoading(false);
+      await speakFallback(text, gender);
+    }
+  }, [apiKey, speakFallback]);
+
+  // ─────────────────────────────────────────────────
   // 🎵 تشغيل المشاعر (ملفات MP3 محلية)
   // ─────────────────────────────────────────────────
   const playLocalAudio = useCallback((audioPath) => {
@@ -143,7 +264,7 @@ export default function App() {
       audioRef.current.onerror = () => { 
         console.warn("MP3 not found:", audioPath);
         setIsSpeaking(false);
-        showError("لم يتم العثور على ملف الصوت!");
+        showError("لم يتم العثور على ملف الصوت! تأكدي من وضعه في المجلد الصحيح.");
         resolve(); 
       };
       
@@ -162,7 +283,11 @@ export default function App() {
     e.preventDefault();
     if (!childName.trim() || !childGender) return;
 
-    await unlockAudio();
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      const ctx = new AudioContext();
+      if (ctx.state === 'suspended') await ctx.resume();
+    }
 
     setStep('welcome');
     
@@ -170,12 +295,12 @@ export default function App() {
       ? `أهلاً بكَ يا ${childName}.` 
       : `أهلاً بكِ يا ${childName}.`;
     
-    await speakAdult(welcomeText, childGender);
+    await playDynamicAudio(welcomeText, childGender);
     setStep('app');
-  }, [childName, childGender, speakAdult, unlockAudio]);
+  }, [childName, childGender, playDynamicAudio]);
 
   // ─────────────────────────────────────────────────
-  // 🎤 تشغيل السؤال عند دخول التطبيق
+  // 🎤 تشغيل السؤال عند دخول التطبيق (API)
   // ─────────────────────────────────────────────────
   useEffect(() => {
     if (step === 'app' && childName && childGender) {
@@ -184,12 +309,12 @@ export default function App() {
         : `كيف تشعرين اليوم يا ${childName}؟`;
       
       const timer = setTimeout(() => {
-        speakAdult(qText, childGender);
+        playDynamicAudio(qText, childGender);
       }, 500);
       
       return () => clearTimeout(timer);
     }
-  }, [step, childName, childGender, speakAdult]);
+  }, [step, childName, childGender, playDynamicAudio]);
 
   useEffect(() => {
     return () => {
@@ -209,6 +334,15 @@ export default function App() {
         <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-white p-4 rounded-2xl z-50 shadow-2xl flex items-center gap-3 animate-bounce w-[90%] max-w-md">
           <AlertCircle className="shrink-0" /> 
           <span className="text-sm font-bold">{errorMessage}</span>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-3xl shadow-2xl flex items-center gap-3">
+            <Loader2 className="animate-spin text-purple-600" size={24} />
+            <span className="font-bold text-purple-800">جاري تحضير الصوت...</span>
+          </div>
         </div>
       )}
 
@@ -262,10 +396,10 @@ export default function App() {
               />
               <button 
                 type="submit" 
-                disabled={!childName.trim() || !childGender} 
+                disabled={!childName.trim() || !childGender || isLoading} 
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-2xl font-black py-5 rounded-[2rem] shadow-xl transition-transform active:scale-95 disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none disabled:cursor-not-allowed"
               >
-                هيا بنا نلعب! 🔊
+                {isLoading ? 'جاري التحميل...' : 'هيا بنا نلعب!'}
               </button>
             </form>
           </div>
@@ -276,13 +410,12 @@ export default function App() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-300 via-pink-400 to-purple-400 text-center relative overflow-hidden">
           <div className="absolute top-10 left-10 w-40 h-40 bg-white/40 rounded-full blur-2xl animate-pulse"></div>
           <div className="absolute bottom-10 right-10 w-56 h-56 bg-white/40 rounded-full blur-2xl animate-pulse"></div>
-          
           <div className="animate-in zoom-in duration-1000 z-10 bg-white/30 p-8 md:p-10 rounded-[3rem] backdrop-blur-sm border-4 border-white/50 shadow-2xl">
             <div className="text-6xl md:text-7xl mb-4 animate-[bounce_1.5s_infinite]">🎉</div>
             <h1 className="text-3xl md:text-5xl font-black text-white drop-shadow-lg px-4 leading-tight">
               أهلاً بك <span className="text-yellow-200 block mt-2 md:mt-3 text-4xl md:text-6xl">{childName}</span>!
             </h1>
-            {isSpeaking && (
+            {(isSpeaking || isLoading) && (
               <div className="mt-8 flex justify-center gap-3 animate-pulse">
                 <div className="w-4 h-4 bg-white rounded-full"></div>
                 <div className="w-4 h-4 bg-white rounded-full delay-75"></div>
@@ -312,7 +445,7 @@ export default function App() {
                 <button 
                   key={f.id} 
                   onClick={() => playLocalAudio(f.audioSrc[childGender])} 
-                  disabled={isSpeaking}
+                  disabled={isSpeaking || isLoading}
                   className={`${f.color} relative group flex flex-col items-center justify-center p-6 md:p-8 rounded-[3.5rem] border-4 border-white transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg active:shadow-inner active:translate-y-2 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed`}
                 >
                   <img 
@@ -350,7 +483,7 @@ export default function App() {
                 تصميم وبرمجة: <a href="https://www.linkedin.com/in/farah-arada-94b5b1339" target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-600 hover:underline transition-all">فرح عرادة</a>
               </p>
               <span className="hidden md:inline text-slate-300">|</span>
-              <p>فكرة: ليلى أبو شباب</p>
+              <p>فكرة:ليلى أبو شباب / سارة أكرم</p>
               <span className="hidden md:inline text-slate-300">|</span>
               <p>جميع الحقوق محفوظة &copy; {new Date().getFullYear()}</p>
             </div>
