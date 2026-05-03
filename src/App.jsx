@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Smile, Home, Volume2, AlertCircle, Loader2 } from 'lucide-react';
+import { Smile, Home, Volume2, AlertCircle } from 'lucide-react';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
+// ─────────────────────────────────────────────────
+// 🔧 دوال تحويل الصوت (للـ API)
+// ─────────────────────────────────────────────────
 const base64ToArrayBuffer = (base64) => {
   const binaryString = window.atob(base64);
   const len = binaryString.length;
@@ -40,6 +43,10 @@ const pcmToWav = (pcmData, sampleRate) => {
   new Uint8Array(buffer, 44).set(new Uint8Array(pcmData));
   return new Blob([buffer], { type: 'audio/wav' });
 };
+
+// ─────────────────────────────────────────────────
+// 🎭 قائمة المشاعر (مع مسارات ملفات MP3)
+// ─────────────────────────────────────────────────
 const feelings = [
   { 
     id: 'happy', 
@@ -104,7 +111,6 @@ export default function App() {
   const [childName, setChildName] = useState('');
   const [childGender, setChildGender] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const audioRef = useRef(null);
@@ -115,6 +121,35 @@ export default function App() {
     setTimeout(() => setErrorMessage(''), 4000);
   }, []);
 
+  // ─────────────────────────────────────────────────
+  // 🔓 تفعيل الصوت (مطلوب للموبايل)
+  // ─────────────────────────────────────────────────
+  const unlockAudio = useCallback(async () => {
+    try {
+      // تفعيل AudioContext
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+      }
+      
+      // تشغيل صوت صامت لفتح "باب" الصوت
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+      silentAudio.volume = 0.01;
+      await silentAudio.play();
+      
+      return true;
+    } catch (e) {
+      console.warn("Audio unlock failed:", e);
+      return false;
+    }
+  }, []);
+
+  // ─────────────────────────────────────────────────
+  // 🎙️ TTS الاحتياطي (إذا فشل API)
+  // ─────────────────────────────────────────────────
   const speakFallback = useCallback((text, gender) => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return; }
@@ -139,12 +174,13 @@ export default function App() {
     });
   }, []);
 
-
+  // ─────────────────────────────────────────────────
+  // 🎙️ الصوت الديناميكي (API) - للترحيب والسؤال فقط
+  // ─────────────────────────────────────────────────
   const playDynamicAudio = useCallback(async (text, gender) => {
     const cacheKey = text + "_" + gender;
-    setIsLoading(true);
 
-  
+    // تشغيل من الذاكرة المؤقتة
     if (audioCache.current[cacheKey]) {
       try {
         if (!audioRef.current) audioRef.current = new Audio();
@@ -152,7 +188,7 @@ export default function App() {
         audioRef.current.src = audioCache.current[cacheKey];
         
         await new Promise((resolve) => {
-          audioRef.current.onplay = () => { setIsSpeaking(true); setIsLoading(false); };
+          audioRef.current.onplay = () => setIsSpeaking(true);
           audioRef.current.onended = () => { setIsSpeaking(false); resolve(); };
           audioRef.current.onerror = () => { setIsSpeaking(false); resolve(); };
           audioRef.current.play().catch(() => { setIsSpeaking(false); resolve(); });
@@ -167,7 +203,7 @@ export default function App() {
       const prompt = "Speak naturally in Arabic with a warm, friendly adult voice.";
       let response = null;
       let lastError = null;
-   
+      
       for (let i = 0; i < 3; i++) {
         try {
           response = await fetch(
@@ -220,7 +256,7 @@ export default function App() {
         audioRef.current.src = url;
         
         await new Promise((resolve) => {
-          audioRef.current.onplay = () => { setIsSpeaking(true); setIsLoading(false); };
+          audioRef.current.onplay = () => setIsSpeaking(true);
           audioRef.current.onended = () => { setIsSpeaking(false); resolve(); };
           audioRef.current.onerror = () => { setIsSpeaking(false); resolve(); };
           audioRef.current.play().catch(() => { setIsSpeaking(false); resolve(); });
@@ -230,12 +266,13 @@ export default function App() {
       }
     } catch (e) {
       console.warn("API failed, falling back to native TTS", e);
-      setIsLoading(false);
       await speakFallback(text, gender);
     }
   }, [apiKey, speakFallback]);
 
-
+  // ─────────────────────────────────────────────────
+  // 🎵 تشغيل المشاعر (ملفات MP3 محلية)
+  // ─────────────────────────────────────────────────
   const playLocalAudio = useCallback((audioPath) => {
     return new Promise((resolve) => {
       if (!audioRef.current) audioRef.current = new Audio();
@@ -260,16 +297,15 @@ export default function App() {
     });
   }, [showError]);
 
-
+  // ─────────────────────────────────────────────────
+  // 🚀 معالجة البداية (مع تفعيل الصوت)
+  // ─────────────────────────────────────────────────
   const handleStart = useCallback(async (e) => {
     e.preventDefault();
     if (!childName.trim() || !childGender) return;
 
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      const ctx = new AudioContext();
-      if (ctx.state === 'suspended') await ctx.resume();
-    }
+    // ← هون بنفعل الصوت أولاً (مطلوب للموبايل)
+    await unlockAudio();
 
     setStep('welcome');
     
@@ -279,9 +315,11 @@ export default function App() {
     
     await playDynamicAudio(welcomeText, childGender);
     setStep('app');
-  }, [childName, childGender, playDynamicAudio]);
+  }, [childName, childGender, playDynamicAudio, unlockAudio]);
 
- 
+  // ─────────────────────────────────────────────────
+  // 🎤 تشغيل السؤال عند دخول التطبيق (API)
+  // ─────────────────────────────────────────────────
   useEffect(() => {
     if (step === 'app' && childName && childGender) {
       const qText = childGender === 'boy' 
@@ -314,15 +352,6 @@ export default function App() {
         <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-white p-4 rounded-2xl z-50 shadow-2xl flex items-center gap-3 animate-bounce w-[90%] max-w-md">
           <AlertCircle className="shrink-0" /> 
           <span className="text-sm font-bold">{errorMessage}</span>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-3xl shadow-2xl flex items-center gap-3">
-            <Loader2 className="animate-spin text-purple-600" size={24} />
-            <span className="font-bold text-purple-800">جاري تحضير الصوت...</span>
-          </div>
         </div>
       )}
 
@@ -376,10 +405,10 @@ export default function App() {
               />
               <button 
                 type="submit" 
-                disabled={!childName.trim() || !childGender || isLoading} 
+                disabled={!childName.trim() || !childGender} 
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-2xl font-black py-5 rounded-[2rem] shadow-xl transition-transform active:scale-95 disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none disabled:cursor-not-allowed"
               >
-                {isLoading ? 'جاري التحميل...' : 'هيا بنا نلعب!'}
+                هيا بنا نلعب! 🔊
               </button>
             </form>
           </div>
@@ -390,12 +419,13 @@ export default function App() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-300 via-pink-400 to-purple-400 text-center relative overflow-hidden">
           <div className="absolute top-10 left-10 w-40 h-40 bg-white/40 rounded-full blur-2xl animate-pulse"></div>
           <div className="absolute bottom-10 right-10 w-56 h-56 bg-white/40 rounded-full blur-2xl animate-pulse"></div>
+          
           <div className="animate-in zoom-in duration-1000 z-10 bg-white/30 p-8 md:p-10 rounded-[3rem] backdrop-blur-sm border-4 border-white/50 shadow-2xl">
             <div className="text-6xl md:text-7xl mb-4 animate-[bounce_1.5s_infinite]">🎉</div>
             <h1 className="text-3xl md:text-5xl font-black text-white drop-shadow-lg px-4 leading-tight">
               أهلاً بك <span className="text-yellow-200 block mt-2 md:mt-3 text-4xl md:text-6xl">{childName}</span>!
             </h1>
-            {(isSpeaking || isLoading) && (
+            {isSpeaking && (
               <div className="mt-8 flex justify-center gap-3 animate-pulse">
                 <div className="w-4 h-4 bg-white rounded-full"></div>
                 <div className="w-4 h-4 bg-white rounded-full delay-75"></div>
@@ -425,7 +455,7 @@ export default function App() {
                 <button 
                   key={f.id} 
                   onClick={() => playLocalAudio(f.audioSrc[childGender])} 
-                  disabled={isSpeaking || isLoading}
+                  disabled={isSpeaking}
                   className={`${f.color} relative group flex flex-col items-center justify-center p-6 md:p-8 rounded-[3.5rem] border-4 border-white transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg active:shadow-inner active:translate-y-2 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed`}
                 >
                   <img 
