@@ -304,7 +304,7 @@ export default function App() {
                 مرحباً بك!
               </h1>
               <p className="text-2xl font-black text-slate-600 mb-8">
-                هل أنت؟ 👦👧
+                هل أنت؟ 
               </p>
 
               <form onSubmit={handleStart} className="space-y-8">
