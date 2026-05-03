@@ -1,49 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Smile, Home, Volume2, AlertCircle } from 'lucide-react';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-
-// ─────────────────────────────────────────────────
-// 🔧 دوال تحويل الصوت (للـ API)
-// ─────────────────────────────────────────────────
-const base64ToArrayBuffer = (base64) => {
-  const binaryString = window.atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-};
-
-const pcmToWav = (pcmData, sampleRate) => {
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  const dataSize = pcmData.byteLength;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-  const writeString = (view, offset, string) => {
-    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-  };
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataSize, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, dataSize, true);
-  new Uint8Array(buffer, 44).set(new Uint8Array(pcmData));
-  return new Blob([buffer], { type: 'audio/wav' });
-};
-
 // ─────────────────────────────────────────────────
 // 🎭 قائمة المشاعر (مع مسارات ملفات MP3)
 // ─────────────────────────────────────────────────
@@ -114,7 +71,6 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const audioRef = useRef(null);
-  const audioCache = useRef({});
 
   const showError = useCallback((msg) => {
     setErrorMessage(msg);
@@ -126,7 +82,6 @@ export default function App() {
   // ─────────────────────────────────────────────────
   const unlockAudio = useCallback(async () => {
     try {
-      // تفعيل AudioContext
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (AudioContext) {
         const ctx = new AudioContext();
@@ -135,7 +90,6 @@ export default function App() {
         }
       }
       
-      // تشغيل صوت صامت لفتح "باب" الصوت
       const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
       silentAudio.volume = 0.01;
       await silentAudio.play();
@@ -148,9 +102,9 @@ export default function App() {
   }, []);
 
   // ─────────────────────────────────────────────────
-  // 🎙️ TTS الاحتياطي (إذا فشل API)
+  // 🎙️ TTS للترحيب والسؤال (صوت بالغ)
   // ─────────────────────────────────────────────────
-  const speakFallback = useCallback((text, gender) => {
+  const speakAdult = useCallback((text, gender) => {
     return new Promise((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return; }
       
@@ -175,102 +129,6 @@ export default function App() {
   }, []);
 
   // ─────────────────────────────────────────────────
-  // 🎙️ الصوت الديناميكي (API) - للترحيب والسؤال فقط
-  // ─────────────────────────────────────────────────
-  const playDynamicAudio = useCallback(async (text, gender) => {
-    const cacheKey = text + "_" + gender;
-
-    // تشغيل من الذاكرة المؤقتة
-    if (audioCache.current[cacheKey]) {
-      try {
-        if (!audioRef.current) audioRef.current = new Audio();
-        audioRef.current.pause();
-        audioRef.current.src = audioCache.current[cacheKey];
-        
-        await new Promise((resolve) => {
-          audioRef.current.onplay = () => setIsSpeaking(true);
-          audioRef.current.onended = () => { setIsSpeaking(false); resolve(); };
-          audioRef.current.onerror = () => { setIsSpeaking(false); resolve(); };
-          audioRef.current.play().catch(() => { setIsSpeaking(false); resolve(); });
-        });
-        return;
-      } catch (e) {
-        console.warn("Cache play failed", e);
-      }
-    }
-
-    try {
-      const prompt = "Speak naturally in Arabic with a warm, friendly adult voice.";
-      let response = null;
-      let lastError = null;
-      
-      for (let i = 0; i < 3; i++) {
-        try {
-          response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: `${prompt} Say: "${text}"` }] }],
-                generationConfig: {
-                  responseModalities: ["AUDIO"],
-                  speechConfig: {
-                    voiceConfig: {
-                      prebuiltVoiceConfig: {
-                        voiceName: gender === 'girl' ? 'Kore' : 'Puck'
-                      }
-                    }
-                  }
-                }
-              })
-            }
-          );
-          
-          if (response.status === 429) {
-            const delay = Math.pow(2, i) * 1000;
-            await new Promise(r => setTimeout(r, delay));
-            continue;
-          }
-          
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          break;
-          
-        } catch (err) {
-          lastError = err;
-          if (i === 2) throw lastError;
-        }
-      }
-
-      const data = await response.json();
-      const base64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || "";
-      const rate = parseInt(mimeType.match(/rate=(\d+)/)?.[1] || "24000");
-
-      if (base64) {
-        const url = URL.createObjectURL(pcmToWav(base64ToArrayBuffer(base64), rate));
-        audioCache.current[cacheKey] = url;
-        
-        if (!audioRef.current) audioRef.current = new Audio();
-        audioRef.current.pause();
-        audioRef.current.src = url;
-        
-        await new Promise((resolve) => {
-          audioRef.current.onplay = () => setIsSpeaking(true);
-          audioRef.current.onended = () => { setIsSpeaking(false); resolve(); };
-          audioRef.current.onerror = () => { setIsSpeaking(false); resolve(); };
-          audioRef.current.play().catch(() => { setIsSpeaking(false); resolve(); });
-        });
-      } else {
-        throw new Error("No audio data received");
-      }
-    } catch (e) {
-      console.warn("API failed, falling back to native TTS", e);
-      await speakFallback(text, gender);
-    }
-  }, [apiKey, speakFallback]);
-
-  // ─────────────────────────────────────────────────
   // 🎵 تشغيل المشاعر (ملفات MP3 محلية)
   // ─────────────────────────────────────────────────
   const playLocalAudio = useCallback((audioPath) => {
@@ -285,7 +143,7 @@ export default function App() {
       audioRef.current.onerror = () => { 
         console.warn("MP3 not found:", audioPath);
         setIsSpeaking(false);
-        showError("لم يتم العثور على ملف الصوت! تأكدي من وضعه في المجلد الصحيح.");
+        showError("لم يتم العثور على ملف الصوت!");
         resolve(); 
       };
       
@@ -298,13 +156,12 @@ export default function App() {
   }, [showError]);
 
   // ─────────────────────────────────────────────────
-  // 🚀 معالجة البداية (مع تفعيل الصوت)
+  // 🚀 معالجة البداية
   // ─────────────────────────────────────────────────
   const handleStart = useCallback(async (e) => {
     e.preventDefault();
     if (!childName.trim() || !childGender) return;
 
-    // ← هون بنفعل الصوت أولاً (مطلوب للموبايل)
     await unlockAudio();
 
     setStep('welcome');
@@ -313,12 +170,12 @@ export default function App() {
       ? `أهلاً بكَ يا ${childName}.` 
       : `أهلاً بكِ يا ${childName}.`;
     
-    await playDynamicAudio(welcomeText, childGender);
+    await speakAdult(welcomeText, childGender);
     setStep('app');
-  }, [childName, childGender, playDynamicAudio, unlockAudio]);
+  }, [childName, childGender, speakAdult, unlockAudio]);
 
   // ─────────────────────────────────────────────────
-  // 🎤 تشغيل السؤال عند دخول التطبيق (API)
+  // 🎤 تشغيل السؤال عند دخول التطبيق
   // ─────────────────────────────────────────────────
   useEffect(() => {
     if (step === 'app' && childName && childGender) {
@@ -327,12 +184,12 @@ export default function App() {
         : `كيف تشعرين اليوم يا ${childName}؟`;
       
       const timer = setTimeout(() => {
-        playDynamicAudio(qText, childGender);
+        speakAdult(qText, childGender);
       }, 500);
       
       return () => clearTimeout(timer);
     }
-  }, [step, childName, childGender, playDynamicAudio]);
+  }, [step, childName, childGender, speakAdult]);
 
   useEffect(() => {
     return () => {
